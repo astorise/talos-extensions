@@ -1,0 +1,9 @@
+# syntax=docker/dockerfile:1
+FROM busybox:1.37.0 AS shell
+FROM ghcr.io/siderolabs/imager:v1.13.4 AS imager
+COPY --from=shell /bin/busybox /busybox
+COPY --from=shell /lib/ /lib/
+COPY imager-profile.yaml /profile.yaml
+RUN ["/busybox", "sh", "-ec", "/bin/imager - < /profile.yaml"]
+FROM scratch
+COPY --from=imager /out/installer-amd64.tar /

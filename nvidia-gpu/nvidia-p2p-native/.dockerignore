@@ -3,3 +3,5 @@
 !595.71.05-ga106-native.patch
 !manifest.yaml
 !nvidia.conf
+!kernel-abi/
+!kernel-abi/**

@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: ga106-native-p2p-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -40,7 +40,7 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-      - name: Compile kernel and NVIDIA modules, export extension
+      - name: Prepare exact kernel headers and compile NVIDIA modules
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -49,12 +49,12 @@ jobs:
           build-args: JOBS=4
           tags: ${{ steps.image.outputs.image }}
           outputs: |
-            type=image,push=true
+            type=image,push=true,oci-mediatypes=true
             type=oci,dest=${{ runner.temp }}/nvidia-native-result/extension.tar
           provenance: false
           sbom: false
-          cache-from: type=gha,scope=talos-1.13.4-ga106-native
-          cache-to: type=gha,mode=max,scope=talos-1.13.4-ga106-native,ignore-error=true
+          cache-from: type=gha,scope=talos-1.13.4-ga106-native-abi
+          cache-to: type=gha,mode=min,scope=talos-1.13.4-ga106-native-abi,ignore-error=true
       - name: Record build provenance
         env:
           IMAGE: ${{ steps.image.outputs.image }}
@@ -72,6 +72,7 @@ jobs:
               'image': os.environ['IMAGE'], 'digest': os.environ['DIGEST'],
               'source': 'NVIDIA/open-gpu-kernel-modules@51edebee79919b54f498c19a0be31982cd97646e',
               'patchSha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
+              'kernelABIManifestSha256': hashlib.sha256(pathlib.Path('nvidia-gpu/nvidia-p2p-native/kernel-abi/SHA256SUMS').read_bytes()).hexdigest(),
               'ociArchiveSha256': hashlib.file_digest((out / 'extension.tar').open('rb'), 'sha256').hexdigest(),
               'hardwareP2PVerified': False,
               'buildMetadata': json.loads(os.environ['BUILD_METADATA']),

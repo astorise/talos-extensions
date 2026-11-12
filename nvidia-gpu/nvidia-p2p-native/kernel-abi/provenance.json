@@ -1,0 +1,11 @@
+{
+  "kernelRelease": "6.18.34-talos",
+  "talosVersion": "v1.13.4",
+  "linuxSourceSha256": "640c4732fb42842166db97e032c1fe7e5ff72c85a8982c75b40f74be3555d760",
+  "pkgsCommit": "54ec9fc3b3890196c4202bca5845f4f12fb651b2",
+  "tools": "v1.13.0-4-ga06bb31",
+  "compiler": "clang version 22.1.2",
+  "origin": "Full local build using the pinned Talos configuration and sources in Dockerfile.full-kernel.",
+  "runtimeABIValidation": "The earlier open-module build using this kernel ABI loaded successfully on the stock 6.18.34-talos kernel. This does not validate native P2P functionality.",
+  "containsPrivateKeys": false
+}

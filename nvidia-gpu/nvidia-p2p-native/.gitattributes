@@ -1,0 +1,3 @@
+kernel-abi/** -text -whitespace
+kernel-abi/Module.symvers -diff
+*.patch text eol=lf -whitespace
