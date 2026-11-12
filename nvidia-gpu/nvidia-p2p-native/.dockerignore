@@ -1,0 +1,5 @@
+*
+!Dockerfile
+!595.71.05-ga106-native.patch
+!manifest.yaml
+!nvidia.conf

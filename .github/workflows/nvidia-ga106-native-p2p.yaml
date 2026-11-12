@@ -1,0 +1,88 @@
+name: GA106 native PCIe P2P experiment
+
+on:
+  push:
+    branches:
+      - experiment/ga106-native-p2p
+    paths:
+      - nvidia-gpu/nvidia-p2p-native/**
+      - .github/workflows/nvidia-ga106-native-p2p.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ga106-native-p2p-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Free space for the Talos kernel build
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Select immutable image tag
+        id: image
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          image="ghcr.io/${REPOSITORY_OWNER,,}/nvidia-ga106-native-p2p:595.71.05-v1.13.4-native.1-${GITHUB_SHA}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/nvidia-native-result"
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Compile kernel and NVIDIA modules, export extension
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: nvidia-gpu/nvidia-p2p-native
+          platforms: linux/amd64
+          build-args: JOBS=4
+          tags: ${{ steps.image.outputs.image }}
+          outputs: |
+            type=image,push=true
+            type=oci,dest=${{ runner.temp }}/nvidia-native-result/extension.tar
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=talos-1.13.4-ga106-native
+          cache-to: type=gha,mode=max,scope=talos-1.13.4-ga106-native,ignore-error=true
+      - name: Record build provenance
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          BUILD_METADATA: ${{ steps.build.outputs.metadata }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          out = pathlib.Path(os.environ['RUNNER_TEMP']) / 'nvidia-native-result'
+          patch = pathlib.Path('nvidia-gpu/nvidia-p2p-native/595.71.05-ga106-native.patch')
+          record = {
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'commit': os.environ['GITHUB_SHA'],
+              'run': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              'image': os.environ['IMAGE'], 'digest': os.environ['DIGEST'],
+              'source': 'NVIDIA/open-gpu-kernel-modules@51edebee79919b54f498c19a0be31982cd97646e',
+              'patchSha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
+              'ociArchiveSha256': hashlib.file_digest((out / 'extension.tar').open('rb'), 'sha256').hexdigest(),
+              'hardwareP2PVerified': False,
+              'buildMetadata': json.loads(os.environ['BUILD_METADATA']),
+          }
+          (out / 'build.json').write_text(json.dumps(record, indent=2) + '\n')
+          PY
+          printf 'Image: `%s@%s`\n\nCompilation only; GPU integrity validation is still required.\n' "$IMAGE" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload compiled extension and provenance
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: ga106-native-p2p-${{ github.sha }}
+          path: ${{ runner.temp }}/nvidia-native-result/
+          retention-days: 14
+          if-no-files-found: error

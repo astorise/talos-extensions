@@ -1,0 +1,11 @@
+version: v1alpha1
+metadata:
+  name: nvidia-ga106-native-p2p
+  version: 595.71.05-v1.13.4-native.1
+  author: astorise
+  description: |
+    Experimental native PCIe mailbox peer mappings for a pair of desktop GA106 GPUs.
+    Requires validation of CUDA remote read/write integrity. Not the community BAR1 patch.
+  compatibility:
+    talos:
+      version: '= v1.13.4'
