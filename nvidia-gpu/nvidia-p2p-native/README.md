@@ -1,5 +1,11 @@
 # GA106 native PCIe P2P experiment
 
+**Trial on 2026-11-12 failed data-integrity validation.** The original driver was
+restored on the node. Native peer reads returned zeros and native writes did
+not update the peer buffer, despite successful setup and advertised support.
+Both CI builds succeeded; this image is not a working P2P solution on the tested
+machine. See [RESULTAT.md](RESULTAT.md) for evidence and final node state.
+
 This experiment starts from unmodified NVIDIA 595.71.05 sources at
 `51edebee79919b54f498c19a0be31982cd97646e`. It applies only the three-file patch
 in this directory and does not import a community P2P patch.
